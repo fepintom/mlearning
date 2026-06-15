@@ -286,8 +286,10 @@ def render():
         # Mostrar resultados
         results = st.session_state.get("kaggle_results", [])
         if results:
-            st.markdown(f"<div style='font-size:13px;color:var(--navy-300);margin:12px 0 8px'>{len(results)} datasets encontrados</div>", unsafe_allow_html=True)
-            for ds in results:
+            only_with_desc = st.checkbox("Solo mostrar datasets con descripción disponible", key="kaggle_filter_desc")
+            filtered = [ds for ds in results if ds.get("description")] if only_with_desc else results
+            st.markdown(f"<div style='font-size:13px;color:var(--navy-300);margin:4px 0 8px'>{len(filtered)} de {len(results)} datasets</div>", unsafe_allow_html=True)
+            for ds in filtered:
                 size_mb = round(ds["size"] / 1_000_000, 1) if ds["size"] else "?"
                 with st.expander(f"**{ds['title']}** · {ds['owner']} · {size_mb} MB · ⬇ {ds['downloads']:,}", expanded=False):
                     col_meta, col_load = st.columns([3, 1])
