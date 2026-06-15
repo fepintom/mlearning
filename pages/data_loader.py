@@ -286,8 +286,8 @@ def render():
         # Mostrar resultados
         results = st.session_state.get("kaggle_results", [])
         if results:
-            only_with_desc = st.checkbox("Solo mostrar datasets con descripción disponible", key="kaggle_filter_desc")
-            filtered = [ds for ds in results if ds.get("description")] if only_with_desc else results
+            only_with_desc = st.checkbox("Solo mostrar datasets con subtítulo / más completos", key="kaggle_filter_desc")
+            filtered = [ds for ds in results if ds.get("subtitle")] if only_with_desc else results
             st.markdown(f"<div style='font-size:13px;color:var(--navy-300);margin:4px 0 8px'>{len(filtered)} de {len(results)} datasets</div>", unsafe_allow_html=True)
             for ds in filtered:
                 size_mb = round(ds["size"] / 1_000_000, 1) if ds["size"] else "?"
