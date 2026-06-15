@@ -31,6 +31,57 @@ def _get_kaggle_api():
         return None
 
 
+def _translate(text: str, target: str = "es") -> str:
+    """Traduce texto usando GoogleTranslator (gratuito, sin API key)."""
+    if not text or not text.strip():
+        return text
+    try:
+        from deep_translator import GoogleTranslator
+        # GoogleTranslator tiene límite de 5000 chars por llamada
+        chunks, result = [], []
+        words = text.split()
+        chunk = ""
+        for w in words:
+            if len(chunk) + len(w) + 1 < 4800:
+                chunk += " " + w
+            else:
+                chunks.append(chunk.strip())
+                chunk = w
+        if chunk:
+            chunks.append(chunk.strip())
+        for c in chunks:
+            result.append(GoogleTranslator(source="auto", target=target).translate(c))
+        return " ".join(result)
+    except Exception:
+        return text  # si falla, devuelve original
+
+
+def _fetch_kaggle_metadata(ref: str) -> dict:
+    """Obtiene descripción y columnas de un dataset de Kaggle."""
+    api = _get_kaggle_api()
+    if api is None:
+        return {}
+    try:
+        owner, slug = ref.split("/")
+        # Metadata del dataset (incluye descripción)
+        meta = api.dataset_metadata(owner, slug)
+        description = ""
+        columns_info = []
+        if hasattr(meta, "info") and meta.info:
+            description = getattr(meta.info, "description", "") or ""
+        # Columnas / schema
+        if hasattr(meta, "columns") and meta.columns:
+            for col in meta.columns:
+                columns_info.append({
+                    "name":        getattr(col, "name", ""),
+                    "type":        getattr(col, "type", ""),
+                    "description": getattr(col, "description", "") or "",
+                })
+        return {"description": description, "columns": columns_info}
+    except Exception:
+        return {}
+
+
 def _search_kaggle(query: str):
     """Busca datasets en Kaggle y retorna lista de dicts."""
     api = _get_kaggle_api()
@@ -48,6 +99,7 @@ def _search_kaggle(query: str):
                 "size":      ds.totalBytes if hasattr(ds, "totalBytes") else 0,
                 "files":     ds.fileCount  if hasattr(ds, "fileCount")  else "?",
                 "downloads": ds.downloadCount if hasattr(ds, "downloadCount") else 0,
+                "subtitle":  getattr(ds, "subtitle", "") or "",
             })
         if not results:
             st.info(f"No se encontraron datasets CSV para '{query}'.")
@@ -189,28 +241,67 @@ def render():
             if results is not None:
                 st.session_state["kaggle_results"] = results
 
+        # Idioma de traducción
+        LANG_OPTIONS = {"Español": "es", "Inglés (original)": "en", "Francés": "fr", "Portugués": "pt", "Alemán": "de"}
+        target_lang = st.selectbox("Idioma para descripciones", list(LANG_OPTIONS.keys()), key="kaggle_lang", label_visibility="collapsed")
+
         # Mostrar resultados
         results = st.session_state.get("kaggle_results", [])
         if results:
             st.markdown(f"<div style='font-size:13px;color:var(--navy-300);margin:12px 0 8px'>{len(results)} datasets encontrados</div>", unsafe_allow_html=True)
             for ds in results:
-                col_info, col_load = st.columns([4, 1])
-                with col_info:
-                    size_mb = round(ds["size"] / 1_000_000, 1) if ds["size"] else "?"
-                    st.markdown(f"""
-                    <div style="background:var(--navy-800);border:1px solid var(--navy-600);
-                                border-radius:10px;padding:12px 16px;margin-bottom:8px">
-                        <div style="font-size:14px;font-weight:700;color:var(--white)">{ds['title']}</div>
-                        <div style="font-size:12px;color:var(--navy-300);margin-top:4px">
-                            {ds['owner']} · {ds['files']} archivo(s) · {size_mb} MB
-                            · ⬇ {ds['downloads']:,} descargas
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with col_load:
-                    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-                    if st.button("Cargar", key=f"load_{ds['ref']}", use_container_width=True):
-                        _load_kaggle_dataset(ds["ref"])
+                size_mb = round(ds["size"] / 1_000_000, 1) if ds["size"] else "?"
+                with st.expander(f"**{ds['title']}** · {ds['owner']} · {size_mb} MB · ⬇ {ds['downloads']:,}", expanded=False):
+                    col_meta, col_load = st.columns([3, 1])
+                    with col_meta:
+                        # Subtítulo si existe
+                        if ds.get("subtitle"):
+                            sub = ds["subtitle"]
+                            if LANG_OPTIONS[target_lang] != "en":
+                                sub = _translate(sub, LANG_OPTIONS[target_lang])
+                            st.markdown(f"<div style='font-size:13px;color:var(--navy-300);margin-bottom:8px'>{sub}</div>", unsafe_allow_html=True)
+                    with col_load:
+                        if st.button("Cargar dataset", key=f"load_{ds['ref']}", use_container_width=True):
+                            _load_kaggle_dataset(ds["ref"])
+
+                    # Descripción y columnas bajo demanda
+                    if st.button("Ver descripción y variables", key=f"meta_{ds['ref']}", use_container_width=False):
+                        with st.spinner("Obteniendo información del dataset..."):
+                            meta = _fetch_kaggle_metadata(ds["ref"])
+                        st.session_state[f"meta_{ds['ref']}"] = meta
+
+                    meta = st.session_state.get(f"meta_{ds['ref']}", {})
+                    if meta:
+                        desc = meta.get("description", "")
+                        if desc:
+                            lang_code = LANG_OPTIONS[target_lang]
+                            if lang_code != "en":
+                                with st.spinner("Traduciendo..."):
+                                    desc = _translate(desc, lang_code)
+                            st.markdown("**Descripción del dataset**")
+                            st.markdown(f"<div style='font-size:13px;color:var(--navy-100);line-height:1.7;background:var(--navy-800);padding:14px;border-radius:8px'>{desc[:3000]}{'...' if len(desc)>3000 else ''}</div>", unsafe_allow_html=True)
+
+                        cols_info = meta.get("columns", [])
+                        if cols_info:
+                            st.markdown("**Variables del dataset**")
+                            rows = ""
+                            for c in cols_info:
+                                cdesc = c["description"]
+                                if cdesc and LANG_OPTIONS[target_lang] != "en":
+                                    cdesc = _translate(cdesc, LANG_OPTIONS[target_lang])
+                                rows += f"<tr><td style='padding:6px 10px;font-weight:600;color:var(--gold)'>{c['name']}</td><td style='padding:6px 10px;color:var(--navy-300)'>{c['type']}</td><td style='padding:6px 10px;color:var(--navy-100)'>{cdesc}</td></tr>"
+                            st.markdown(f"""
+                            <table style='width:100%;border-collapse:collapse;font-size:13px'>
+                              <thead><tr style='border-bottom:1px solid var(--navy-600)'>
+                                <th style='padding:6px 10px;text-align:left;color:var(--navy-300)'>Variable</th>
+                                <th style='padding:6px 10px;text-align:left;color:var(--navy-300)'>Tipo</th>
+                                <th style='padding:6px 10px;text-align:left;color:var(--navy-300)'>Descripción</th>
+                              </tr></thead>
+                              <tbody>{rows}</tbody>
+                            </table>
+                            """, unsafe_allow_html=True)
+                        elif not desc:
+                            st.info("Este dataset no tiene descripción detallada en Kaggle.")
 
     # ─── TAB 3: Datasets de ejemplo ─────────────────────────────────────────
     with tab_example:
