@@ -56,30 +56,20 @@ def _translate(text: str, target: str = "es") -> str:
         return text  # si falla, devuelve original
 
 
-def _fetch_kaggle_metadata(ref: str) -> dict:
-    """Obtiene descripción y columnas de un dataset de Kaggle."""
+def _fetch_kaggle_files(ref: str) -> list:
+    """Lista los archivos CSV de un dataset de Kaggle."""
     api = _get_kaggle_api()
     if api is None:
-        return {}
+        return []
     try:
-        owner, slug = ref.split("/")
-        # Metadata del dataset (incluye descripción)
-        meta = api.dataset_metadata(owner, slug)
-        description = ""
-        columns_info = []
-        if hasattr(meta, "info") and meta.info:
-            description = getattr(meta.info, "description", "") or ""
-        # Columnas / schema
-        if hasattr(meta, "columns") and meta.columns:
-            for col in meta.columns:
-                columns_info.append({
-                    "name":        getattr(col, "name", ""),
-                    "type":        getattr(col, "type", ""),
-                    "description": getattr(col, "description", "") or "",
-                })
-        return {"description": description, "columns": columns_info}
+        resp = api.dataset_list_files(ref)
+        files = getattr(resp, "files", []) or []
+        return [
+            {"name": getattr(f, "name", ""), "size": getattr(f, "total_bytes", 0)}
+            for f in files if str(getattr(f, "name", "")).endswith(".csv")
+        ]
     except Exception:
-        return {}
+        return []
 
 
 def _search_kaggle(query: str):
@@ -91,15 +81,18 @@ def _search_kaggle(query: str):
         with st.spinner(f"Buscando '{query}' en Kaggle..."):
             datasets = api.dataset_list(search=query, file_type="csv", max_size=500_000_000)
         results = []
-        for ds in datasets[:12]:
+        for ds in list(datasets)[:12]:
             results.append({
-                "ref":       f"{ds.ref}",
-                "title":     ds.title,
-                "owner":     ds.ownerName if hasattr(ds, "ownerName") else str(ds.ref).split("/")[0],
-                "size":      ds.totalBytes if hasattr(ds, "totalBytes") else 0,
-                "files":     ds.fileCount  if hasattr(ds, "fileCount")  else "?",
-                "downloads": ds.downloadCount if hasattr(ds, "downloadCount") else 0,
+                "ref":       str(ds.ref),
+                "title":     ds.title or str(ds.ref),
+                "owner":     getattr(ds, "owner_name", str(ds.ref).split("/")[0]),
+                "size":      getattr(ds, "total_bytes", 0) or 0,
+                "files":     len(getattr(ds, "files", []) or []),
+                "downloads": getattr(ds, "download_count", 0) or 0,
                 "subtitle":  getattr(ds, "subtitle", "") or "",
+                "description": getattr(ds, "description", "") or "",
+                "tags":      [str(t) for t in (getattr(ds, "tags", []) or [])],
+                "usability": getattr(ds, "usability_rating", None),
             })
         if not results:
             st.info(f"No se encontraron datasets CSV para '{query}'.")
@@ -264,44 +257,53 @@ def render():
                         if st.button("Cargar dataset", key=f"load_{ds['ref']}", use_container_width=True):
                             _load_kaggle_dataset(ds["ref"])
 
-                    # Descripción y columnas bajo demanda
-                    if st.button("Ver descripción y variables", key=f"meta_{ds['ref']}", use_container_width=False):
-                        with st.spinner("Obteniendo información del dataset..."):
-                            meta = _fetch_kaggle_metadata(ds["ref"])
-                        st.session_state[f"meta_{ds['ref']}"] = meta
+                    # Descripción del dataset
+                    lang_code = LANG_OPTIONS[target_lang]
+                    desc = ds.get("description", "")
+                    subtitle = ds.get("subtitle", "")
+                    tags = ds.get("tags", [])
 
-                    meta = st.session_state.get(f"meta_{ds['ref']}", {})
-                    if meta:
-                        desc = meta.get("description", "")
-                        if desc:
-                            lang_code = LANG_OPTIONS[target_lang]
-                            if lang_code != "en":
-                                with st.spinner("Traduciendo..."):
-                                    desc = _translate(desc, lang_code)
-                            st.markdown("**Descripción del dataset**")
-                            st.markdown(f"<div style='font-size:13px;color:var(--navy-100);line-height:1.7;background:var(--navy-800);padding:14px;border-radius:8px'>{desc[:3000]}{'...' if len(desc)>3000 else ''}</div>", unsafe_allow_html=True)
+                    # Mostrar subtitle traducido si existe
+                    if subtitle:
+                        text = subtitle
+                        if lang_code != "en":
+                            with st.spinner("Traduciendo..."):
+                                text = _translate(subtitle, lang_code)
+                        st.markdown(f"<div style='font-size:13px;color:var(--navy-300);margin-bottom:8px'>📌 {text}</div>", unsafe_allow_html=True)
 
-                        cols_info = meta.get("columns", [])
-                        if cols_info:
-                            st.markdown("**Variables del dataset**")
-                            rows = ""
-                            for c in cols_info:
-                                cdesc = c["description"]
-                                if cdesc and LANG_OPTIONS[target_lang] != "en":
-                                    cdesc = _translate(cdesc, LANG_OPTIONS[target_lang])
-                                rows += f"<tr><td style='padding:6px 10px;font-weight:600;color:var(--gold)'>{c['name']}</td><td style='padding:6px 10px;color:var(--navy-300)'>{c['type']}</td><td style='padding:6px 10px;color:var(--navy-100)'>{cdesc}</td></tr>"
-                            st.markdown(f"""
-                            <table style='width:100%;border-collapse:collapse;font-size:13px'>
+                    # Descripción larga si existe
+                    if desc:
+                        if lang_code != "en":
+                            with st.spinner("Traduciendo descripción..."):
+                                desc = _translate(desc, lang_code)
+                        st.markdown(f"<div style='font-size:13px;color:var(--navy-100);line-height:1.7;background:var(--navy-800);padding:14px;border-radius:8px;margin-bottom:8px'>{desc[:3000]}{'...' if len(desc)>3000 else ''}</div>", unsafe_allow_html=True)
+
+                    # Tags
+                    if tags:
+                        tag_html = " ".join(f"<span style='background:var(--navy-700);color:var(--navy-200);padding:2px 8px;border-radius:10px;font-size:11px;margin-right:4px'>{t}</span>" for t in tags[:8])
+                        st.markdown(tag_html, unsafe_allow_html=True)
+
+                    # Archivos CSV disponibles
+                    if st.button("Ver archivos CSV", key=f"files_{ds['ref']}", use_container_width=False):
+                        with st.spinner("Listando archivos..."):
+                            csv_files = _fetch_kaggle_files(ds["ref"])
+                        st.session_state[f"files_{ds['ref']}"] = csv_files
+
+                    csv_files = st.session_state.get(f"files_{ds['ref']}", None)
+                    if csv_files is not None:
+                        if csv_files:
+                            rows = "".join(
+                                f"<tr><td style='padding:5px 10px;color:var(--gold);font-weight:600'>{f['name']}</td>"
+                                f"<td style='padding:5px 10px;color:var(--navy-300)'>{round(f['size']/1_000_000,2)} MB</td></tr>"
+                                for f in csv_files
+                            )
+                            st.markdown(f"""<table style='width:100%;border-collapse:collapse;font-size:13px'>
                               <thead><tr style='border-bottom:1px solid var(--navy-600)'>
-                                <th style='padding:6px 10px;text-align:left;color:var(--navy-300)'>Variable</th>
-                                <th style='padding:6px 10px;text-align:left;color:var(--navy-300)'>Tipo</th>
-                                <th style='padding:6px 10px;text-align:left;color:var(--navy-300)'>Descripción</th>
-                              </tr></thead>
-                              <tbody>{rows}</tbody>
-                            </table>
-                            """, unsafe_allow_html=True)
-                        elif not desc:
-                            st.info("Este dataset no tiene descripción detallada en Kaggle.")
+                                <th style='padding:5px 10px;text-align:left;color:var(--navy-300)'>Archivo</th>
+                                <th style='padding:5px 10px;text-align:left;color:var(--navy-300)'>Tamaño</th>
+                              </tr></thead><tbody>{rows}</tbody></table>""", unsafe_allow_html=True)
+                        else:
+                            st.info("No se encontraron archivos CSV en este dataset.")
 
     # ─── TAB 3: Datasets de ejemplo ─────────────────────────────────────────
     with tab_example:
