@@ -13,6 +13,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# ── Viewport para móvil ───────────────────────────────────────────────────────
+st.markdown("""
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+""", unsafe_allow_html=True)
+
 # ── CSS global ────────────────────────────────────────────────────────────────
 with open("assets/styles/main.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)

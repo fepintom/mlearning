@@ -346,3 +346,89 @@ div[data-testid="stButton"] > button:hover {
   border-radius: 10px !important;
 }
 .stProgress > div > div { background: var(--navy-700) !important; }
+
+/* ══════════════════════════════════════════════════
+   RESPONSIVE MOBILE
+   ══════════════════════════════════════════════════ */
+
+/* Forzar colores en móvil (algunos browsers los pierden) */
+@media screen and (max-width: 768px) {
+
+  /* Contenedor principal más compacto */
+  .block-container {
+    padding: 0 8px !important;
+    max-width: 100% !important;
+  }
+
+  /* Navbar compacta */
+  .ml-navbar {
+    padding: 10px 14px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .ml-navbar-brand { font-size: 17px !important; }
+  .ml-navbar-steps { gap: 4px !important; flex-wrap: wrap; }
+  .ml-step { font-size: 9px !important; padding: 3px 8px !important; }
+
+  /* Títulos más pequeños */
+  .ml-section-header { font-size: 18px !important; }
+  .ml-section-sub    { font-size: 13px !important; }
+
+  /* Cards full width */
+  .ml-card { padding: 16px !important; border-radius: 12px !important; }
+
+  /* Métricas en 2 columnas en móvil */
+  .ml-metric { padding: 14px 10px !important; }
+  .ml-metric-value { font-size: 22px !important; }
+
+  /* Botones full width y más grandes (fácil de tocar) */
+  .stButton > button {
+    width: 100% !important;
+    padding: 14px 16px !important;
+    font-size: 15px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Tabs: scroll horizontal en móvil */
+  .stTabs [data-baseweb="tab-list"] {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+  }
+  .stTabs [data-baseweb="tab"] {
+    font-size: 12px !important;
+    padding: 8px 12px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Columnas de Streamlit en móvil: apilar verticalmente */
+  [data-testid="column"] {
+    width: 100% !important;
+    min-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+
+  /* Info boxes */
+  .ml-info-box, .ml-warn-box {
+    font-size: 12px !important;
+    padding: 10px 12px !important;
+  }
+
+  /* Param labels */
+  .ml-param-label { font-size: 12px !important; }
+
+  /* Plotly charts */
+  .js-plotly-plot { max-width: 100% !important; }
+
+  /* Expanders */
+  .stExpander { border-radius: 8px !important; }
+
+  /* Select type cards */
+  [style*="height: 430px"] { height: auto !important; min-height: 280px !important; }
+}
+
+/* Tablet */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  .block-container { padding: 0 16px !important; }
+  .ml-section-header { font-size: 20px !important; }
+}
