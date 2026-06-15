@@ -226,25 +226,39 @@ def render():
     with tab_anim:
         col_v, col_text = st.columns([2, 1])
         with col_v:
-            if model_key == "linear_regression":
-                from utils.model_runner import animate_linear_regression
-                X_raw = st.session_state.get("X")
-                y_raw = st.session_state.get("y")
-                feat  = st.session_state.get("feature_cols", [])
-                if X_raw is not None and y_raw is not None:
+            X_raw  = st.session_state.get("X")
+            y_raw  = st.session_state.get("y")
+            feat   = st.session_state.get("feature_cols", [])
+            has_xy = X_raw is not None
+
+            ANIM_FN = {
+                "linear_regression":   ("animate_linear_regression",  lambda: __import__("utils.model_runner", fromlist=["animate_linear_regression"]).animate_linear_regression(X_raw, y_raw, feat)),
+                "logistic_regression": ("animate_logistic_regression", lambda: __import__("utils.model_runner", fromlist=["animate_logistic_regression"]).animate_logistic_regression(X_raw, y_raw, result, feat)),
+                "svm":                 ("animate_svm",                 lambda: __import__("utils.model_runner", fromlist=["animate_svm"]).animate_svm(X_raw, y_raw, result, feat)),
+                "kmeans":              ("animate_kmeans",              lambda: __import__("utils.model_runner", fromlist=["animate_kmeans"]).animate_kmeans(X_raw, result, feat)),
+                "pca":                 ("animate_pca",                 lambda: __import__("utils.model_runner", fromlist=["animate_pca"]).animate_pca(X_raw, result, feat)),
+                "decision_tree":       ("animate_decision_tree",       lambda: __import__("utils.model_runner", fromlist=["animate_decision_tree"]).animate_decision_tree(X_raw, y_raw, result, feat)),
+                "random_forest":       ("animate_random_forest",       lambda: __import__("utils.model_runner", fromlist=["animate_random_forest"]).animate_random_forest(X_raw, y_raw, result, feat)),
+                "knn":                 ("animate_knn",                 lambda: __import__("utils.model_runner", fromlist=["animate_knn"]).animate_knn(X_raw, y_raw, result, feat)),
+                "gradient_boosting":   ("animate_gradient_boosting",   lambda: __import__("utils.model_runner", fromlist=["animate_gradient_boosting"]).animate_gradient_boosting(X_raw, y_raw, result, feat)),
+                "naive_bayes":         ("animate_naive_bayes",         lambda: __import__("utils.model_runner", fromlist=["animate_naive_bayes"]).animate_naive_bayes(X_raw, y_raw, result, feat)),
+                "dbscan":              ("animate_dbscan",              lambda: __import__("utils.model_runner", fromlist=["animate_dbscan"]).animate_dbscan(X_raw, result, feat)),
+                "hierarchical":        ("animate_hierarchical",        lambda: __import__("utils.model_runner", fromlist=["animate_hierarchical"]).animate_hierarchical(X_raw, result, feat)),
+            }
+
+            if has_xy and model_key in ANIM_FN:
+                cache_key = f"anim_{model_key}"
+                if cache_key not in st.session_state:
                     with st.spinner("Generando animación con tus datos..."):
-                        fig_anim = animate_linear_regression(X_raw, y_raw, feat)
-                    st.plotly_chart(fig_anim, use_container_width=True)
-                else:
-                    st.info("No hay datos disponibles para animar.")
+                        try:
+                            st.session_state[cache_key] = ANIM_FN[model_key][1]()
+                        except Exception as e:
+                            st.error(f"Error generando animación: {e}")
+                            st.session_state[cache_key] = None
+                if st.session_state.get(cache_key):
+                    st.plotly_chart(st.session_state[cache_key], use_container_width=True)
             else:
-                # Modelos sin animación Plotly aún: mostrar video pre-renderizado
-                scene_name = ANIM_SCENE_MAP.get(model_key)
-                anim_path  = _get_animation_path(scene_name) if scene_name else None
-                if anim_path and anim_path.exists():
-                    st.video(str(anim_path), autoplay=True, loop=True)
-                else:
-                    st.info("Animación no disponible para este modelo.")
+                st.info("No hay datos disponibles para animar.")
 
         with col_text:
             math_concept = info.get("math_concept", "")

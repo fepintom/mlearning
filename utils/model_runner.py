@@ -157,6 +157,473 @@ def animate_linear_regression(X, y, feature_names=None) -> "go.Figure":
     return fig
 
 
+def _anim_layout(title="", fname0="X1", fname1="X2", height=460):
+    """Layout oscuro estándar para animaciones."""
+    return dict(
+        title=dict(text=title, font=dict(color=WHITE, size=13)),
+        xaxis=dict(title=fname0, color=NAVY_300, gridcolor=NAVY_600, zeroline=False),
+        yaxis=dict(title=fname1, color=NAVY_300, gridcolor=NAVY_600, zeroline=False),
+        paper_bgcolor=NAVY_900, plot_bgcolor=NAVY_800,
+        font=dict(color=NAVY_300), height=height,
+        legend=dict(bgcolor=NAVY_800, bordercolor=NAVY_600, font=dict(color=WHITE)),
+        margin=dict(t=50, b=100, r=160),
+    )
+
+def _anim_buttons(n_frames, duration=150):
+    """Botones y slider estándar para animaciones."""
+    buttons = [dict(
+        type="buttons", showactive=False,
+        y=0.5, x=1.13, xanchor="left", yanchor="middle", direction="down",
+        buttons=[
+            dict(label="▶  Reproducir", method="animate",
+                 args=[None, dict(frame=dict(duration=duration, redraw=True), fromcurrent=True, mode="immediate")]),
+            dict(label="⏸  Pausar", method="animate",
+                 args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")]),
+        ],
+        bgcolor=NAVY_800, bordercolor=GOLD, font=dict(color=WHITE),
+    )]
+    sliders = [dict(
+        steps=[dict(method="animate", args=[[str(i)],
+               dict(mode="immediate", frame=dict(duration=duration, redraw=True))],
+               label=str(i+1)) for i in range(n_frames)],
+        currentvalue=dict(prefix="Paso: ", font=dict(color=WHITE)),
+        bgcolor=NAVY_800, bordercolor=NAVY_600, font=dict(color=NAVY_300),
+        y=-0.18, len=1.0, x=0,
+    )]
+    return buttons, sliders
+
+
+def animate_logistic_regression(X, y, result, feature_names=None):
+    """Frontera de decisión formándose iteración a iteración (2 features)."""
+    from sklearn.linear_model import LogisticRegression as LR
+    X_np, y_np = _to_numpy(X)[:, :2], _to_numpy(y, force_float=False)
+    f0 = feature_names[0] if feature_names else "X1"
+    f1 = feature_names[1] if len(feature_names or []) > 1 else "X2"
+    classes = np.unique(y_np)
+    colors_cls = [PALETTE[i % len(PALETTE)] for i in range(len(classes))]
+
+    x0_r = np.linspace(X_np[:,0].min()-0.5, X_np[:,0].max()+0.5, 80)
+    x1_r = np.linspace(X_np[:,1].min()-0.5, X_np[:,1].max()+0.5, 80)
+    xx, yy = np.meshgrid(x0_r, x1_r)
+
+    n_frames = 30
+    frames = []
+    for step in range(1, n_frames+1):
+        max_iter = max(1, int(step * 10))
+        m = LR(max_iter=max_iter, random_state=42)
+        try:
+            m.fit(X_np, y_np)
+        except Exception:
+            m.fit(X_np, y_np)
+        Z = m.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+        data = [go.Contour(x=x0_r, y=x1_r, z=Z, showscale=False,
+                           colorscale=[[0, "rgba(74,126,200,0.18)"], [1, "rgba(240,165,0,0.18)"]],
+                           line=dict(width=2, color=GOLD), name="Frontera")]
+        for i, cls in enumerate(classes):
+            mask = y_np == cls
+            data.append(go.Scatter(x=X_np[mask,0], y=X_np[mask,1], mode="markers",
+                                   marker=dict(color=colors_cls[i], size=7, opacity=0.8),
+                                   name=str(cls)))
+        acc = float((m.predict(X_np) == y_np).mean())
+        frames.append(go.Frame(data=data, name=str(step-1),
+                               layout=go.Layout(title_text=f"Iteración {max_iter} · Accuracy: {acc:.3f}")))
+
+    layout = _anim_layout(f"Frontera de decisión — Regresión Logística", f0, f1)
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(n_frames)
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
+def animate_svm(X, y, result, feature_names=None):
+    """Margen SVM: muestra vectores de soporte y frontera final paso a paso."""
+    from sklearn.svm import SVC
+    X_np, y_np = _to_numpy(X)[:, :2], _to_numpy(y, force_float=False)
+    f0 = feature_names[0] if feature_names else "X1"
+    f1 = feature_names[1] if len(feature_names or []) > 1 else "X2"
+    classes = np.unique(y_np)
+
+    x0_r = np.linspace(X_np[:,0].min()-0.5, X_np[:,0].max()+0.5, 80)
+    x1_r = np.linspace(X_np[:,1].min()-0.5, X_np[:,1].max()+0.5, 80)
+    xx, yy = np.meshgrid(x0_r, x1_r)
+
+    Cs = np.logspace(-2, 2, 30)
+    frames = []
+    for i, C in enumerate(Cs):
+        m = SVC(C=C, kernel="rbf", random_state=42)
+        m.fit(X_np, y_np)
+        Z = m.decision_function(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+        sv = m.support_vectors_
+        data = [
+            go.Contour(x=x0_r, y=x1_r, z=Z, showscale=False,
+                       contours=dict(start=-1, end=1, size=1,
+                                     coloring="lines", showlabels=False),
+                       line=dict(color=GOLD, width=2), name="Margen/Frontera"),
+        ]
+        for j, cls in enumerate(classes):
+            mask = y_np == cls
+            data.append(go.Scatter(x=X_np[mask,0], y=X_np[mask,1], mode="markers",
+                                   marker=dict(color=PALETTE[j%len(PALETTE)], size=7, opacity=0.75),
+                                   name=str(cls)))
+        data.append(go.Scatter(x=sv[:,0], y=sv[:,1], mode="markers",
+                               marker=dict(symbol="circle-open", size=14, color=WHITE,
+                                          line=dict(width=2, color=WHITE)),
+                               name="Vectores soporte"))
+        acc = float((m.predict(X_np) == y_np).mean())
+        frames.append(go.Frame(data=data, name=str(i),
+                               layout=go.Layout(title_text=f"C={C:.3f} · {len(sv)} vectores soporte · Acc: {acc:.3f}")))
+
+    layout = _anim_layout("SVM — Margen y vectores de soporte", f0, f1)
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(len(frames))
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
+def animate_kmeans(X, result, feature_names=None):
+    """Centroides moviéndose hasta converger (K-Means)."""
+    from sklearn.cluster import KMeans
+    X_np = _to_numpy(X)[:, :2]
+    f0 = feature_names[0] if feature_names else "X1"
+    f1 = feature_names[1] if len(feature_names or []) > 1 else "X2"
+    k = result.get("k", 3)
+
+    np.random.seed(42)
+    centroids = X_np[np.random.choice(len(X_np), k, replace=False)]
+    frames = []
+    for step in range(25):
+        dists = np.linalg.norm(X_np[:, None] - centroids[None], axis=2)
+        labels = dists.argmin(axis=1)
+        data = []
+        for i in range(k):
+            mask = labels == i
+            data.append(go.Scatter(x=X_np[mask,0], y=X_np[mask,1], mode="markers",
+                                   marker=dict(color=PALETTE[i%len(PALETTE)], size=6, opacity=0.7),
+                                   name=f"Cluster {i+1}"))
+        data.append(go.Scatter(x=centroids[:,0], y=centroids[:,1], mode="markers",
+                               marker=dict(symbol="x", size=16, color=WHITE,
+                                          line=dict(width=3, color=WHITE)),
+                               name="Centroides"))
+        frames.append(go.Frame(data=data, name=str(step),
+                               layout=go.Layout(title_text=f"Iteración {step+1} — K-Means (k={k})")))
+        new_centroids = np.array([X_np[labels==i].mean(axis=0) if (labels==i).any() else centroids[i] for i in range(k)])
+        if np.allclose(centroids, new_centroids):
+            frames += [frames[-1]] * (25 - step - 1)
+            break
+        centroids = new_centroids
+
+    layout = _anim_layout(f"K-Means — Convergencia de centroides (k={k})", f0, f1)
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(len(frames))
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
+def animate_pca(X, result, feature_names=None):
+    """Varianza explicada acumulándose al agregar componentes."""
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.decomposition import PCA
+    X_np = _to_numpy(X)
+    X_sc = StandardScaler().fit_transform(X_np)
+    n = min(X_np.shape[1], 10)
+    pca_full = PCA(n_components=n).fit(X_sc)
+    evr = pca_full.explained_variance_ratio_
+    cumvar = np.cumsum(evr)
+
+    frames = []
+    for i in range(1, n+1):
+        bars = go.Bar(x=[f"PC{j+1}" for j in range(i)], y=evr[:i]*100,
+                      marker_color=PALETTE[0], name="Varianza por PC")
+        line = go.Scatter(x=[f"PC{j+1}" for j in range(i)], y=cumvar[:i]*100,
+                          mode="lines+markers", line=dict(color=GOLD, width=2),
+                          marker=dict(size=8), name="Acumulada")
+        frames.append(go.Frame(data=[bars, line], name=str(i),
+                               layout=go.Layout(title_text=f"{i} componente(s) · Varianza acumulada: {cumvar[i-1]*100:.1f}%")))
+
+    layout = dict(
+        title=dict(text="PCA — Varianza explicada", font=dict(color=WHITE, size=13)),
+        xaxis=dict(title="Componente Principal", color=NAVY_300, gridcolor=NAVY_600),
+        yaxis=dict(title="Varianza explicada (%)", color=NAVY_300, gridcolor=NAVY_600, range=[0, 105]),
+        paper_bgcolor=NAVY_900, plot_bgcolor=NAVY_800, font=dict(color=NAVY_300), height=460,
+        legend=dict(bgcolor=NAVY_800, bordercolor=NAVY_600, font=dict(color=WHITE)),
+        margin=dict(t=50, b=100, r=160),
+        barmode="group",
+    )
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(n, duration=300)
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
+def animate_decision_tree(X, y, result, feature_names=None):
+    """Accuracy del árbol creciendo profundidad a profundidad."""
+    from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+    from sklearn.model_selection import train_test_split
+    X_np, y_np = _to_numpy(X), _to_numpy(y, force_float=False)
+    X_tr, X_te, y_tr, y_te = train_test_split(X_np, y_np, test_size=0.2, random_state=42)
+    is_reg = len(np.unique(y_np)) > 20
+    max_d = min(12, X_np.shape[0]//5)
+
+    train_sc, test_sc = [], []
+    for d in range(1, max_d+1):
+        Cls = DecisionTreeRegressor if is_reg else DecisionTreeClassifier
+        m = Cls(max_depth=d, random_state=42).fit(X_tr, y_tr)
+        if is_reg:
+            from sklearn.metrics import r2_score
+            train_sc.append(r2_score(y_tr, m.predict(X_tr)))
+            test_sc.append(r2_score(y_te, m.predict(X_te)))
+        else:
+            train_sc.append(m.score(X_tr, y_tr))
+            test_sc.append(m.score(X_te, y_te))
+
+    metric = "R²" if is_reg else "Accuracy"
+    frames = []
+    for i in range(1, max_d+1):
+        frames.append(go.Frame(
+            data=[
+                go.Scatter(x=list(range(1,i+1)), y=train_sc[:i], mode="lines+markers",
+                           line=dict(color=PALETTE[0], width=2), marker=dict(size=8), name="Train"),
+                go.Scatter(x=list(range(1,i+1)), y=test_sc[:i], mode="lines+markers",
+                           line=dict(color=GOLD, width=2), marker=dict(size=8), name="Test"),
+            ],
+            name=str(i),
+            layout=go.Layout(title_text=f"Profundidad {i} · {metric} test: {test_sc[i-1]:.3f}")
+        ))
+
+    layout = dict(
+        title=dict(text=f"Árbol de Decisión — {metric} vs Profundidad", font=dict(color=WHITE, size=13)),
+        xaxis=dict(title="Profundidad máxima", color=NAVY_300, gridcolor=NAVY_600, dtick=1),
+        yaxis=dict(title=metric, color=NAVY_300, gridcolor=NAVY_600, range=[0,1.05]),
+        paper_bgcolor=NAVY_900, plot_bgcolor=NAVY_800, font=dict(color=NAVY_300), height=460,
+        legend=dict(bgcolor=NAVY_800, bordercolor=NAVY_600, font=dict(color=WHITE)),
+        margin=dict(t=50, b=100, r=160),
+    )
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(max_d, duration=400)
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
+def animate_random_forest(X, y, result, feature_names=None):
+    """OOB/test score mejorando al agregar árboles al bosque."""
+    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+    from sklearn.model_selection import train_test_split
+    X_np, y_np = _to_numpy(X), _to_numpy(y, force_float=False)
+    X_tr, X_te, y_tr, y_te = train_test_split(X_np, y_np, test_size=0.2, random_state=42)
+    is_reg = len(np.unique(y_np)) > 20
+    Cls = RandomForestRegressor if is_reg else RandomForestClassifier
+    n_steps = [1,2,3,5,8,13,20,30,50,75,100]
+    metric = "R²" if is_reg else "Accuracy"
+
+    scores = []
+    for n in n_steps:
+        m = Cls(n_estimators=n, random_state=42, oob_score=True if n>1 else False).fit(X_tr, y_tr)
+        if is_reg:
+            from sklearn.metrics import r2_score
+            scores.append(r2_score(y_te, m.predict(X_te)))
+        else:
+            scores.append(m.score(X_te, y_te))
+
+    frames = []
+    for i in range(1, len(n_steps)+1):
+        frames.append(go.Frame(
+            data=[go.Scatter(x=n_steps[:i], y=scores[:i], mode="lines+markers",
+                             line=dict(color=GOLD, width=2.5), marker=dict(size=9, color=PALETTE[0]),
+                             name=metric)],
+            name=str(i),
+            layout=go.Layout(title_text=f"{n_steps[i-1]} árboles · {metric}: {scores[i-1]:.3f}")
+        ))
+
+    layout = dict(
+        title=dict(text=f"Random Forest — {metric} vs Número de árboles", font=dict(color=WHITE, size=13)),
+        xaxis=dict(title="Número de árboles", color=NAVY_300, gridcolor=NAVY_600),
+        yaxis=dict(title=metric, color=NAVY_300, gridcolor=NAVY_600, range=[0,1.05]),
+        paper_bgcolor=NAVY_900, plot_bgcolor=NAVY_800, font=dict(color=NAVY_300), height=460,
+        legend=dict(bgcolor=NAVY_800, bordercolor=NAVY_600, font=dict(color=WHITE)),
+        margin=dict(t=50, b=100, r=160),
+    )
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(len(frames), duration=400)
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
+def animate_knn(X, y, result, feature_names=None):
+    """Frontera de decisión KNN con k variando de 1 a 20."""
+    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+    X_np, y_np = _to_numpy(X)[:, :2], _to_numpy(y, force_float=False)
+    f0 = feature_names[0] if feature_names else "X1"
+    f1 = feature_names[1] if len(feature_names or []) > 1 else "X2"
+    is_reg = len(np.unique(y_np)) > 20
+    classes = np.unique(y_np)
+
+    x0_r = np.linspace(X_np[:,0].min()-0.3, X_np[:,0].max()+0.3, 60)
+    x1_r = np.linspace(X_np[:,1].min()-0.3, X_np[:,1].max()+0.3, 60)
+    xx, yy = np.meshgrid(x0_r, x1_r)
+    k_vals = list(range(1, min(21, len(X_np)//2)))
+
+    frames = []
+    for k in k_vals:
+        Cls = KNeighborsRegressor if is_reg else KNeighborsClassifier
+        m = Cls(n_neighbors=k).fit(X_np, y_np)
+        Z = m.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+        data = [go.Contour(x=x0_r, y=x1_r, z=Z, showscale=False,
+                           colorscale=[[0,"rgba(74,126,200,0.2)"],[1,"rgba(240,165,0,0.2)"]],
+                           line=dict(color=WHITE, width=1.5), name="Frontera")]
+        for i, cls in enumerate(classes[:6]):
+            mask = y_np == cls
+            data.append(go.Scatter(x=X_np[mask,0], y=X_np[mask,1], mode="markers",
+                                   marker=dict(color=PALETTE[i%len(PALETTE)], size=7, opacity=0.8),
+                                   name=str(cls)))
+        acc = float(m.score(X_np, y_np))
+        frames.append(go.Frame(data=data, name=str(k_vals.index(k)),
+                               layout=go.Layout(title_text=f"k={k} vecinos · Score: {acc:.3f}")))
+
+    layout = _anim_layout("KNN — Frontera de decisión por k", f0, f1)
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(len(frames), duration=300)
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
+def animate_gradient_boosting(X, y, result, feature_names=None):
+    """Loss de entrenamiento y validación por etapa de boosting."""
+    from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+    from sklearn.model_selection import train_test_split
+    X_np, y_np = _to_numpy(X), _to_numpy(y, force_float=False)
+    X_tr, X_te, y_tr, y_te = train_test_split(X_np, y_np, test_size=0.2, random_state=42)
+    is_reg = len(np.unique(y_np)) > 20
+    Cls = GradientBoostingRegressor if is_reg else GradientBoostingClassifier
+    n_est = 80
+    m = Cls(n_estimators=n_est, random_state=42).fit(X_tr, y_tr)
+
+    train_loss = list(m.train_score_)
+    test_loss  = [m.score(X_te, y_te) for _ in range(1)]  # single final score
+    # staged predictions for test
+    from sklearn.metrics import r2_score, accuracy_score
+    test_scores = []
+    for pred in m.staged_predict(X_te):
+        if is_reg:
+            test_scores.append(r2_score(y_te, pred))
+        else:
+            test_scores.append(accuracy_score(y_te, pred.round()))
+
+    n_frames = min(40, n_est)
+    step = max(1, n_est // n_frames)
+    idxs = list(range(0, n_est, step))
+    metric = "R²" if is_reg else "Accuracy"
+
+    frames = []
+    for fi, i in enumerate(idxs):
+        frames.append(go.Frame(
+            data=[
+                go.Scatter(x=list(range(1,i+2)), y=train_loss[:i+1], mode="lines",
+                           line=dict(color=PALETTE[0], width=2), name="Train loss"),
+                go.Scatter(x=list(range(1,i+2)), y=test_scores[:i+1], mode="lines",
+                           line=dict(color=GOLD, width=2), name=f"Test {metric}"),
+            ],
+            name=str(fi),
+            layout=go.Layout(title_text=f"Etapa {i+1}/{n_est} · Test {metric}: {test_scores[i]:.3f}")
+        ))
+
+    layout = dict(
+        title=dict(text="Gradient Boosting — Curva de aprendizaje por etapa", font=dict(color=WHITE, size=13)),
+        xaxis=dict(title="Etapa (n_estimators)", color=NAVY_300, gridcolor=NAVY_600),
+        yaxis=dict(title="Score", color=NAVY_300, gridcolor=NAVY_600),
+        paper_bgcolor=NAVY_900, plot_bgcolor=NAVY_800, font=dict(color=NAVY_300), height=460,
+        legend=dict(bgcolor=NAVY_800, bordercolor=NAVY_600, font=dict(color=WHITE)),
+        margin=dict(t=50, b=100, r=160),
+    )
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(len(frames), duration=100)
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
+def animate_naive_bayes(X, y, result, feature_names=None):
+    """Distribuciones gaussianas por clase (1 feature a la vez)."""
+    from sklearn.naive_bayes import GaussianNB
+    X_np, y_np = _to_numpy(X), _to_numpy(y, force_float=False)
+    classes = np.unique(y_np)
+    n_feat = min(X_np.shape[1], 6)
+    fnames = feature_names[:n_feat] if feature_names else [f"X{i+1}" for i in range(n_feat)]
+
+    m = GaussianNB().fit(X_np, y_np)
+    frames = []
+    for fi in range(n_feat):
+        x_range = np.linspace(X_np[:,fi].min()-1, X_np[:,fi].max()+1, 200)
+        data = []
+        for ci, cls in enumerate(classes):
+            idx = list(m.classes_).index(cls)
+            mu  = m.theta_[idx, fi]
+            sig = np.sqrt(m.var_[idx, fi])
+            pdf = np.exp(-0.5*((x_range-mu)/sig)**2) / (sig*np.sqrt(2*np.pi))
+            data.append(go.Scatter(x=x_range, y=pdf, mode="lines", fill="tozeroy",
+                                   fillcolor=f"rgba({int(PALETTE[ci%len(PALETTE)][1:3],16)},"
+                                             f"{int(PALETTE[ci%len(PALETTE)][3:5],16)},"
+                                             f"{int(PALETTE[ci%len(PALETTE)][5:7],16)},0.2)",
+                                   line=dict(color=PALETTE[ci%len(PALETTE)], width=2),
+                                   name=str(cls)))
+        frames.append(go.Frame(data=data, name=str(fi),
+                               layout=go.Layout(title_text=f"Feature: {fnames[fi]}")))
+
+    layout = dict(
+        title=dict(text="Naive Bayes — Distribución Gaussiana por clase", font=dict(color=WHITE, size=13)),
+        xaxis=dict(title="Valor", color=NAVY_300, gridcolor=NAVY_600),
+        yaxis=dict(title="Densidad", color=NAVY_300, gridcolor=NAVY_600),
+        paper_bgcolor=NAVY_900, plot_bgcolor=NAVY_800, font=dict(color=NAVY_300), height=460,
+        legend=dict(bgcolor=NAVY_800, bordercolor=NAVY_600, font=dict(color=WHITE)),
+        margin=dict(t=50, b=100, r=160),
+    )
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(n_feat, duration=500)
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
+def animate_dbscan(X, result, feature_names=None):
+    """Expansión de clusters DBSCAN variando eps."""
+    from sklearn.cluster import DBSCAN
+    from sklearn.preprocessing import StandardScaler
+    X_np = _to_numpy(X)[:, :2]
+    f0 = feature_names[0] if feature_names else "X1"
+    f1 = feature_names[1] if len(feature_names or []) > 1 else "X2"
+    X_sc = StandardScaler().fit_transform(X_np)
+    eps_vals = np.linspace(0.1, 1.5, 30)
+
+    frames = []
+    for i, eps in enumerate(eps_vals):
+        labels = DBSCAN(eps=eps, min_samples=3).fit_predict(X_sc)
+        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+        noise = (labels == -1).sum()
+        data = []
+        for lbl in sorted(set(labels)):
+            mask = labels == lbl
+            if lbl == -1:
+                data.append(go.Scatter(x=X_np[mask,0], y=X_np[mask,1], mode="markers",
+                                       marker=dict(color="#5a7a9f", size=5, opacity=0.5,
+                                                  symbol="x"), name="Ruido"))
+            else:
+                data.append(go.Scatter(x=X_np[mask,0], y=X_np[mask,1], mode="markers",
+                                       marker=dict(color=PALETTE[lbl%len(PALETTE)], size=7, opacity=0.8),
+                                       name=f"Cluster {lbl+1}"))
+        frames.append(go.Frame(data=data, name=str(i),
+                               layout=go.Layout(title_text=f"eps={eps:.2f} · {n_clusters} clusters · {noise} ruido")))
+
+    layout = _anim_layout("DBSCAN — Clusters vs epsilon", f0, f1)
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(len(frames), duration=150)
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
+def animate_hierarchical(X, result, feature_names=None):
+    """Número de clusters vs umbral de corte (enlace jerárquico)."""
+    from sklearn.cluster import AgglomerativeClustering
+    from sklearn.preprocessing import StandardScaler
+    X_np = _to_numpy(X)[:, :2]
+    f0 = feature_names[0] if feature_names else "X1"
+    f1 = feature_names[1] if len(feature_names or []) > 1 else "X2"
+    X_sc = StandardScaler().fit_transform(X_np)
+    k_vals = list(range(2, min(12, len(X_np)//3)+1))
+
+    frames = []
+    for k in k_vals:
+        labels = AgglomerativeClustering(n_clusters=k).fit_predict(X_sc)
+        data = []
+        for lbl in range(k):
+            mask = labels == lbl
+            data.append(go.Scatter(x=X_np[mask,0], y=X_np[mask,1], mode="markers",
+                                   marker=dict(color=PALETTE[lbl%len(PALETTE)], size=7, opacity=0.8),
+                                   name=f"Cluster {lbl+1}"))
+        frames.append(go.Frame(data=data, name=str(k_vals.index(k)),
+                               layout=go.Layout(title_text=f"k={k} clusters — Clustering Jerárquico")))
+
+    layout = _anim_layout("Clustering Jerárquico — Número de clusters", f0, f1)
+    layout["updatemenus"], layout["sliders"] = _anim_buttons(len(frames), duration=500)
+    return go.Figure(data=frames[0].data, frames=frames, layout=go.Layout(**layout))
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  REGRESIÓN LINEAL
 # ══════════════════════════════════════════════════════════════════════════════
