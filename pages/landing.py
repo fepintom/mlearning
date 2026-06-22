@@ -381,10 +381,7 @@ def render():
     </style>
     """, unsafe_allow_html=True)
 
-    col_anim, col_text = st.columns([1.15, 1])
-
-    with col_anim:
-        components.html(MANIM_ANIMATION, height=560, scrolling=False)
+    col_text, col_anim = st.columns([1, 1.15])
 
     with col_text:
         RIGHT_PANEL = """
@@ -476,3 +473,6 @@ def render():
         }
         </style>
         """, unsafe_allow_html=True)
+
+    with col_anim:
+        components.html(MANIM_ANIMATION, height=560, scrolling=False)
