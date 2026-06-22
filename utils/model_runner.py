@@ -77,19 +77,32 @@ def animate_linear_regression(X, y, feature_names=None) -> "go.Figure":
 
     x_line = np.linspace(x1.min(), x1.max(), 100)
 
-    # Simular gradient descent manual (learning rate fijo)
-    w, b = 0.0, 0.0
-    lr = 0.01
+    # Normalizar para que el GD converja correctamente sin importar la escala
+    x_mean, x_std = x1.mean(), x1.std() or 1.0
+    y_mean, y_std = y_np.mean(), y_np.std() or 1.0
+    x_norm = (x1 - x_mean) / x_std
+    y_norm = (y_np - y_mean) / y_std
+
+    # Coeficientes finales reales (sklearn) para comparar
+    from sklearn.linear_model import LinearRegression as _LR
+    _m = _LR().fit(x1.reshape(-1,1), y_np)
+    w_final, b_final = float(_m.coef_[0]), float(_m.intercept_)
+
+    # Gradient descent normalizado
+    w_n, b_n = 0.0, 0.0
+    lr = 0.1
     n_frames = 40
-    frames, losses = [], []
+    frames = []
 
     for step in range(n_frames):
-        y_hat = w * x1 + b
-        err = y_hat - y_np
-        loss = float(np.mean(err ** 2))
-        losses.append(loss)
+        # Desnormalizar para mostrar en escala real
+        w_real = w_n * (y_std / x_std)
+        b_real = y_mean + b_n * y_std - w_real * x_mean
 
-        y_line = w * x_line + b
+        y_line = w_real * x_line + b_real
+        y_hat_n = w_n * x_norm + b_n
+        loss = float(np.mean((y_hat_n - y_norm) ** 2))
+        mse_real = float(np.mean((w_real * x1 + b_real - y_np) ** 2))
 
         frames.append(go.Frame(
             data=[
@@ -100,15 +113,16 @@ def animate_linear_regression(X, y, feature_names=None) -> "go.Figure":
                            line=dict(color=GOLD, width=2.5), name="Recta ajustada"),
             ],
             layout=go.Layout(
-                title_text=f"Paso {step+1}/{n_frames} · MSE: {loss:.4f} · w={w:.3f} · b={b:.3f}"
+                title_text=f"Paso {step+1}/{n_frames} · MSE: {mse_real:.2f} · w={w_real:.3f} · b={b_real:.3f}"
             ),
             name=str(step),
         ))
-        # Actualizar pesos
-        dw = float(np.mean(err * x1))
-        db = float(np.mean(err))
-        w -= lr * dw
-        b -= lr * db
+        # Actualizar pesos normalizados
+        err_n = y_hat_n - y_norm
+        dw = float(np.mean(err_n * x_norm))
+        db = float(np.mean(err_n))
+        w_n -= lr * dw
+        b_n -= lr * db
 
     # Figura inicial
     fig = go.Figure(
