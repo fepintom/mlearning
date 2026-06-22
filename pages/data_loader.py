@@ -243,7 +243,7 @@ def render():
     </div>
     """, unsafe_allow_html=True)
 
-    tab_upload, tab_kaggle, tab_example = st.tabs(["Cargar CSV", "Kaggle", "Dataset de ejemplo"])
+    tab_upload, tab_example = st.tabs(["Cargar CSV", "Dataset de ejemplo"])
 
     # ─── TAB 1: Upload CSV ───────────────────────────────────────────────────
     with tab_upload:
@@ -281,123 +281,7 @@ def render():
                 st.error(f"Error al leer el archivo: {e}")
                 st.info("Prueba cambiando el separador o la codificación.")
 
-    # ─── TAB 2: Kaggle ───────────────────────────────────────────────────────
-    with tab_kaggle:
-        st.markdown("""
-        <div class="ml-info-box">
-            <strong>Busca datasets de Kaggle directamente.</strong><br>
-            Escribe un término (ej: <code>titanic</code>, <code>housing prices</code>, <code>iris</code>)
-            y selecciona el dataset que quieres cargar.
-        </div>
-        """, unsafe_allow_html=True)
-
-        col_search, col_btn = st.columns([3, 1])
-        with col_search:
-            query = st.text_input(
-                "Buscar en Kaggle",
-                placeholder="ej: titanic, iris, house prices...",
-                key="kaggle_search_query",
-                label_visibility="collapsed",
-            )
-        with col_btn:
-            do_search = st.button("Buscar", key="kaggle_search_btn", use_container_width=True)
-
-        if do_search and query.strip():
-            results = _search_kaggle(query.strip())
-            if results is not None:
-                st.session_state["kaggle_results"] = results
-
-        # Idioma de traducción
-        LANG_OPTIONS = {"Español": "es", "Inglés (original)": "en", "Francés": "fr", "Portugués": "pt", "Alemán": "de"}
-        target_lang = st.selectbox("Idioma para descripciones", list(LANG_OPTIONS.keys()), key="kaggle_lang", label_visibility="collapsed")
-
-        # Mostrar resultados
-        results = st.session_state.get("kaggle_results", [])
-        if results:
-            only_with_desc = st.checkbox("Solo mostrar datasets con subtítulo / más completos", key="kaggle_filter_desc")
-            filtered = [ds for ds in results if ds.get("subtitle")] if only_with_desc else results
-            st.markdown(f"<div style='font-size:13px;color:var(--navy-300);margin:4px 0 8px'>{len(filtered)} de {len(results)} datasets</div>", unsafe_allow_html=True)
-            for ds in filtered:
-                size_mb = round(ds["size"] / 1_000_000, 1) if ds["size"] else "?"
-                with st.expander(f"**{ds['title']}** · {ds['owner']} · {size_mb} MB · ⬇ {ds['downloads']:,}", expanded=False):
-                    col_meta, col_load = st.columns([3, 1])
-                    with col_meta:
-                        # Subtítulo si existe
-                        if ds.get("subtitle"):
-                            sub = ds["subtitle"]
-                            if LANG_OPTIONS[target_lang] != "en":
-                                sub = _translate(sub, LANG_OPTIONS[target_lang])
-                            st.markdown(f"<div style='font-size:13px;color:var(--navy-300);margin-bottom:8px'>{sub}</div>", unsafe_allow_html=True)
-                    with col_load:
-                        if st.button("Cargar dataset", key=f"load_{ds['ref']}", use_container_width=True):
-                            _load_kaggle_dataset(ds["ref"])
-
-                    lang_code = LANG_OPTIONS[target_lang]
-
-                    # Tags + link a Kaggle
-                    tags = ds.get("tags", [])
-                    row_cols = st.columns([3, 1])
-                    with row_cols[0]:
-                        if tags:
-                            tag_html = " ".join(f"<span style='background:var(--navy-700);color:var(--navy-200);padding:2px 8px;border-radius:10px;font-size:11px;margin-right:4px'>{t}</span>" for t in tags[:8])
-                            st.markdown(tag_html, unsafe_allow_html=True)
-                        lic = ds.get("license", "")
-                        usab = ds.get("usability")
-                        meta_txt = " · ".join(filter(None, [f"Licencia: {lic}" if lic else "", f"Usabilidad: {usab:.1f}/10" if usab else ""]))
-                        if meta_txt:
-                            st.markdown(f"<div style='font-size:11px;color:var(--navy-400);margin-top:6px'>{meta_txt}</div>", unsafe_allow_html=True)
-                    with row_cols[1]:
-                        kaggle_url = ds.get("url", f"https://www.kaggle.com/datasets/{ds['ref']}")
-                        st.markdown(f"<a href='{kaggle_url}' target='_blank' style='display:block;text-align:center;font-size:12px;color:var(--gold);text-decoration:none;padding:6px;border:1px solid var(--gold);border-radius:8px;margin-top:4px'>Ver en Kaggle ↗</a>", unsafe_allow_html=True)
-
-                    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-
-                    # Botón para cargar descripción completa + discussions
-                    if st.button("Ver descripción y discusiones", key=f"btn_detail_{ds['ref']}", use_container_width=False):
-                        with st.spinner("Obteniendo información del dataset..."):
-                            detail = _fetch_kaggle_detail(ds["ref"])
-                        st.session_state[f"data_detail_{ds['ref']}"] = detail
-
-                    detail = st.session_state.get(f"data_detail_{ds['ref']}", {})
-                    if detail:
-                        desc = detail.get("description", "")
-                        if not desc:
-                            st.markdown(f"<div style='font-size:13px;color:var(--navy-300);padding:10px;background:var(--navy-800);border-radius:8px'>Este dataset no tiene descripción pública. <a href='{kaggle_url}' target='_blank' style='color:var(--gold)'>Ver en Kaggle ↗</a></div>", unsafe_allow_html=True)
-                        else:
-                            if lang_code != "en":
-                                with st.spinner("Traduciendo..."):
-                                    desc = _translate(desc, lang_code)
-                            st.markdown("**Descripción**")
-                            # Render markdown nativo de Streamlit (la desc viene en markdown)
-                            st.markdown(f"<div style='background:var(--navy-800);padding:16px;border-radius:8px;margin-bottom:8px'><div style='font-size:13px;color:var(--navy-100);line-height:1.8'>{desc[:4000].replace(chr(10), '<br>')}</div></div>", unsafe_allow_html=True)
-
-                        # Discussions
-                        discussions = detail.get("discussions", [])
-                        if discussions:
-                            st.markdown("**Discusiones recientes**")
-                            for d in discussions:
-                                title = d["title"]
-                                if lang_code != "en":
-                                    title = _translate(title, lang_code)
-                                st.markdown(f"<div style='font-size:13px;padding:8px 12px;background:var(--navy-800);border-radius:8px;margin-bottom:4px'><a href='{d['url']}' target='_blank' style='color:var(--gold);text-decoration:none'>{title}</a> <span style='color:var(--navy-400);font-size:11px'>· {d['replies']} respuestas</span></div>", unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"<div style='font-size:12px;color:var(--navy-400)'>Ver discusiones en <a href='{kaggle_url}#discussion' target='_blank' style='color:var(--gold)'>la página de Kaggle ↗</a></div>", unsafe_allow_html=True)
-
-                    # Archivos CSV
-                    if st.button("Ver archivos CSV", key=f"btn_files_{ds['ref']}", use_container_width=False):
-                        with st.spinner("Listando archivos..."):
-                            csv_files = _fetch_kaggle_files(ds["ref"])
-                        st.session_state[f"data_files_{ds['ref']}"] = csv_files
-
-                    csv_files_list = st.session_state.get(f"data_files_{ds['ref']}", None)
-                    if csv_files_list is not None:
-                        if csv_files_list:
-                            rows = "".join(f"<tr><td style='padding:5px 10px;color:var(--gold);font-weight:600'>{f['name']}</td><td style='padding:5px 10px;color:var(--navy-300)'>{round(f['size']/1_000_000,2)} MB</td></tr>" for f in csv_files_list)
-                            st.markdown(f"<table style='width:100%;border-collapse:collapse;font-size:13px'><thead><tr style='border-bottom:1px solid var(--navy-600)'><th style='padding:5px 10px;text-align:left;color:var(--navy-300)'>Archivo</th><th style='padding:5px 10px;text-align:left;color:var(--navy-300)'>Tamaño</th></tr></thead><tbody>{rows}</tbody></table>", unsafe_allow_html=True)
-                        else:
-                            st.info("No se encontraron archivos CSV.")
-
-    # ─── TAB 3: Datasets de ejemplo ─────────────────────────────────────────
+    # ─── TAB 2: Datasets de ejemplo ─────────────────────────────────────────
     with tab_example:
         datasets = get_example_datasets()
         chosen = st.selectbox("Elige un dataset de ejemplo", list(datasets.keys()))
