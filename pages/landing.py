@@ -445,6 +445,7 @@ def render():
               <div class="feat-desc">Todo el conocimiento cargado localmente</div>
             </div>
           </div>
+          <button class="btn" onclick="window.parent.document.querySelector('button[kind=primary], [data-testid=stButton] button').click()">Comenzar →</button>
         </div>
         <script>
         function fixLayout() {
@@ -457,34 +458,23 @@ def render():
         window.addEventListener('resize', fixLayout);
         </script>
         """
-        components.html(RIGHT_PANEL, height=700, scrolling=False)
+        components.html(RIGHT_PANEL, height=720, scrolling=False)
 
     with col_anim:
         components.html(MANIM_ANIMATION, height=560, scrolling=False)
 
-    # Botón centrado debajo de ambas columnas
+    # Botón oculto de Streamlit — el HTML del panel lo dispara via click()
     st.markdown("""
     <style>
     div[data-testid="stButton"] > button {
-      background: #f0a500 !important;
-      color: #0d1b2a !important;
-      border: none !important;
-      border-radius: 12px !important;
-      font-size: 18px !important;
-      font-weight: 700 !important;
-      padding: 16px 64px !important;
-      box-shadow: 0 8px 28px rgba(240,165,0,0.35) !important;
-      display: block; margin: 0 auto;
-    }
-    div[data-testid="stButton"] > button:hover {
-      background: #d99400 !important;
-      box-shadow: 0 12px 36px rgba(240,165,0,0.45) !important;
+      position: fixed !important;
+      left: -9999px !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    col_l, col_btn, col_r = st.columns([1, 1, 1])
-    with col_btn:
-        if st.button("Comenzar →", key="landing_continue", use_container_width=True):
-            st.session_state.page = "select_type"
-            st.rerun()
+    if st.button("Comenzar →", key="landing_continue"):
+        st.session_state.page = "select_type"
+        st.rerun()
