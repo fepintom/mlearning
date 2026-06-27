@@ -387,13 +387,6 @@ def render():
     </style>
     """, unsafe_allow_html=True)
 
-    # ── Botón primero — siempre visible ─────────────────────────────────────
-    col_btn, col_sp = st.columns([1, 2])
-    with col_btn:
-        if st.button("Comenzar →", key="landing_continue", use_container_width=True):
-            st.session_state.page = "select_type"
-            st.rerun()
-
     # ── Logo y título ────────────────────────────────────────────────────────
     st.markdown("""
     <h1 style="font-size:56px;font-weight:900;color:#fff;letter-spacing:-2px;margin:16px 0 4px 0">
@@ -431,6 +424,11 @@ def render():
           </div>
         </div>
         """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+        if st.button("Comenzar →", key="landing_continue", use_container_width=True):
+            st.session_state.page = "select_type"
+            st.rerun()
 
     with col_anim:
         components.html(MANIM_ANIMATION, height=480, scrolling=False)
