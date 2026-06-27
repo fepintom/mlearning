@@ -377,6 +377,10 @@ def render():
     #MainMenu, footer, header { visibility: hidden; }
     .block-container { padding: 2rem 2rem 2rem 2rem !important; }
     section[data-testid="stSidebar"] { display:none; }
+    /* Alinear columna de animación con la de texto */
+    [data-testid="stHorizontalBlock"]:last-of-type [data-testid="stColumn"]:last-child {
+      margin-top: -60px !important;
+    }
     div[data-testid="stButton"] > button {
       background: #f0a500 !important; color: #0d1b2a !important;
       border: none !important; border-radius: 12px !important;
@@ -431,5 +435,4 @@ def render():
             st.rerun()
 
     with col_anim:
-        st.markdown("<div style='margin-top:-32px'></div>", unsafe_allow_html=True)
         components.html(MANIM_ANIMATION, height=480, scrolling=False)
