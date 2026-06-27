@@ -375,61 +375,64 @@ def render():
     <style>
     .stApp { background: #0d1b2a !important; }
     #MainMenu, footer, header { visibility: hidden; }
-    .block-container { padding: 2rem 1rem 1rem 1rem !important; max-width: 960px !important; }
+    .block-container { padding: 2rem 2rem 2rem 2rem !important; }
     section[data-testid="stSidebar"] { display:none; }
-
-    /* Texto hero */
-    .lnd-badge {
-      display:inline-block; background:rgba(240,165,0,0.12);
-      border:1px solid rgba(240,165,0,0.35); border-radius:20px;
-      padding:4px 14px; font-size:11px; font-weight:700;
-      color:#f0a500; letter-spacing:1.5px; text-transform:uppercase;
-    }
-    .lnd-logo { font-size:52px; font-weight:900; color:#fff; letter-spacing:-2px; line-height:1.05; margin:10px 0 8px; }
-    .lnd-logo span { color:#f0a500; }
-    .lnd-tag  { font-size:18px; font-weight:600; color:rgba(255,255,255,0.88); margin-bottom:6px; }
-    .lnd-sub  { font-size:13px; color:rgba(255,255,255,0.45); line-height:1.8; margin-bottom:20px; }
-    .lnd-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:20px; }
-    .lnd-feat { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:12px 14px; }
-    .lnd-feat b { display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; margin-bottom:4px; }
-    .lnd-feat p { font-size:12px; color:rgba(255,255,255,0.5); margin:0; line-height:1.5; }
-
-    /* Botón Comenzar */
     div[data-testid="stButton"] > button {
-      background:#f0a500 !important; color:#0d1b2a !important;
-      border:none !important; border-radius:12px !important;
-      font-size:17px !important; font-weight:700 !important;
-      padding:13px 52px !important;
-      box-shadow:0 6px 24px rgba(240,165,0,0.4) !important;
-      margin-top:4px !important;
-    }
-    div[data-testid="stButton"] > button:hover {
-      background:#d99400 !important;
-      box-shadow:0 10px 32px rgba(240,165,0,0.5) !important;
+      background: #f0a500 !important; color: #0d1b2a !important;
+      border: none !important; border-radius: 12px !important;
+      font-size: 18px !important; font-weight: 700 !important;
+      padding: 14px 0 !important; width: 100% !important;
+      box-shadow: 0 6px 24px rgba(240,165,0,0.4) !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # ── Fila superior: texto + animación ────────────────────────────────────
-    col_text, col_anim = st.columns([1, 1.1])
+    # ── Logo y título ────────────────────────────────────────────────────────
+    st.markdown("""
+    <h1 style="font-size:56px;font-weight:900;color:#fff;letter-spacing:-2px;margin:0 0 4px 0">
+      ML<span style="color:#f0a500">earning</span>
+    </h1>
+    <p style="font-size:19px;font-weight:600;color:rgba(255,255,255,0.85);margin:0 0 6px 0">
+      La app definitiva para aprender Machine Learning
+    </p>
+    <p style="font-size:13px;color:rgba(255,255,255,0.45);margin:0 0 24px 0">
+      Entrena modelos reales · Visualiza cómo aprenden · Comprende cada hiperparámetro · Genera código listo para usar.
+    </p>
+    """, unsafe_allow_html=True)
 
-    with col_text:
-        st.markdown("""
-        <div class="lnd-badge">Machine Learning · Visual · Interactivo</div>
-        <div class="lnd-logo">ML<span>earning</span></div>
-        <div class="lnd-tag">La app definitiva para aprender Machine Learning</div>
-        <div class="lnd-sub">Entrena modelos reales · Visualiza cómo aprenden<br>Comprende cada hiperparámetro · Genera código listo para usar.</div>
-        <div class="lnd-grid">
-          <div class="lnd-feat"><b style="color:#4a7ec8">Visualización</b><p>Animaciones del proceso de aprendizaje</p></div>
-          <div class="lnd-feat"><b style="color:#f0a500">Hiperparámetros</b><p>Cada parámetro explicado con efecto real</p></div>
-          <div class="lnd-feat"><b style="color:#2e7d5a">Código</b><p>Script Python generado y descargable</p></div>
-          <div class="lnd-feat"><b style="color:#a8c4e0">12 Modelos</b><p>Supervisado y no supervisado</p></div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if st.button("Comenzar →", key="landing_continue"):
+    # ── Botón prominente ─────────────────────────────────────────────────────
+    col_btn, col_sp = st.columns([1, 2])
+    with col_btn:
+        if st.button("Comenzar →", key="landing_continue", use_container_width=True):
             st.session_state.page = "select_type"
             st.rerun()
+
+    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+
+    # ── Tarjetas + animación ─────────────────────────────────────────────────
+    col_cards, col_anim = st.columns([1, 1.2])
+
+    with col_cards:
+        st.markdown("""
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:14px 16px">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#4a7ec8;margin-bottom:4px">Visualización</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.55)">Animaciones del proceso de aprendizaje de cada modelo</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:14px 16px">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#f0a500;margin-bottom:4px">Hiperparámetros</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.55)">Cada parámetro explicado con su efecto real en el modelo</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:14px 16px">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#2e7d5a;margin-bottom:4px">Código Python</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.55)">Script generado y descargable al finalizar</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:14px 16px">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#a8c4e0;margin-bottom:4px">12 Modelos</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.55)">Supervisado y no supervisado, desde regresión hasta clustering</div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with col_anim:
         components.html(MANIM_ANIMATION, height=480, scrolling=False)
