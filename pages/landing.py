@@ -457,31 +457,34 @@ def render():
         window.addEventListener('resize', fixLayout);
         </script>
         """
-        st.markdown("""
-        <style>
-        div[data-testid="stButton"] > button {
-          background: #f0a500 !important;
-          color: #0d1b2a !important;
-          border: none !important;
-          border-radius: 12px !important;
-          font-size: 16px !important;
-          font-weight: 700 !important;
-          padding: 14px 48px !important;
-          box-shadow: 0 8px 28px rgba(240,165,0,0.35) !important;
-        }
-        div[data-testid="stButton"] > button:hover {
-          background: #d99400 !important;
-          transform: translateY(-1px) !important;
-          box-shadow: 0 12px 36px rgba(240,165,0,0.45) !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-        if st.button("Comenzar →", key="landing_continue", use_container_width=False):
-            st.session_state.page = "select_type"
-            st.rerun()
-
         components.html(RIGHT_PANEL, height=700, scrolling=False)
 
     with col_anim:
         components.html(MANIM_ANIMATION, height=560, scrolling=False)
+
+    # Botón centrado debajo de ambas columnas
+    st.markdown("""
+    <style>
+    div[data-testid="stButton"] > button {
+      background: #f0a500 !important;
+      color: #0d1b2a !important;
+      border: none !important;
+      border-radius: 12px !important;
+      font-size: 18px !important;
+      font-weight: 700 !important;
+      padding: 16px 64px !important;
+      box-shadow: 0 8px 28px rgba(240,165,0,0.35) !important;
+      display: block; margin: 0 auto;
+    }
+    div[data-testid="stButton"] > button:hover {
+      background: #d99400 !important;
+      box-shadow: 0 12px 36px rgba(240,165,0,0.45) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    col_l, col_btn, col_r = st.columns([1, 1, 1])
+    with col_btn:
+        if st.button("Comenzar →", key="landing_continue", use_container_width=True):
+            st.session_state.page = "select_type"
+            st.rerun()
