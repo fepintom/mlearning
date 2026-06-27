@@ -384,97 +384,89 @@ def render():
     col_text, col_anim = st.columns([1, 1.15])
 
     with col_text:
-        RIGHT_PANEL = """
+        st.markdown("""
         <style>
-          * { box-sizing: border-box; margin:0; padding:0; font-family: system-ui, -apple-system, sans-serif; }
-          body { background: transparent; }
-          .panel { padding: 60px 32px 20px 8px; }
-          .badge {
-            display: inline-block;
-            background: rgba(240,165,0,0.12);
-            border: 1px solid rgba(240,165,0,0.35);
-            border-radius: 20px;
-            padding: 4px 16px;
-            font-size: 11px; font-weight: 700;
-            color: #f0a500; letter-spacing: 1.5px;
-            text-transform: uppercase; margin-bottom: 22px;
-          }
-          .logo { font-size: 54px; font-weight: 900; color: white; letter-spacing: -2px; line-height: 1.05; margin-bottom: 14px; }
-          .logo span { color: #f0a500; }
-          .tagline { font-size: 18px; font-weight: 600; color: rgba(255,255,255,0.85); line-height: 1.5; margin-bottom: 10px; }
-          .sub { font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.75; margin-bottom: 32px; }
-          .grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 28px; }
-          .feat {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px; padding: 14px 16px;
-          }
-          .feat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
-          .feat-desc  { font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.5; }
-          .btn {
-            display: inline-block;
-            background: #f0a500; color: #0d1b2a;
-            border: none; border-radius: 12px;
-            font-size: 16px; font-weight: 700;
-            padding: 14px 40px; cursor: pointer;
-            box-shadow: 0 8px 32px rgba(240,165,0,0.3);
-            text-decoration: none;
-          }
-          .btn:hover { background: #e09400; }
-        </style>
-        <div class="panel">
-          <div class="badge">Machine Learning · Visual · Interactivo</div>
-          <div class="logo">ML<span>earning</span></div>
-          <div class="tagline">La app definitiva para aprender Machine Learning</div>
-          <div class="sub">Entrena modelos reales · Visualiza cómo aprenden · Comprende cada hiperparámetro · Genera código listo para usar.</div>
-          <div class="grid">
-            <div class="feat">
-              <div class="feat-label" style="color:#4a7ec8">Visualización</div>
-              <div class="feat-desc">Animaciones matemáticas estilo 3Blue1Brown</div>
-            </div>
-            <div class="feat">
-              <div class="feat-label" style="color:#f0a500">Hiperparámetros</div>
-              <div class="feat-desc">Cada parámetro explicado con efecto y regla práctica</div>
-            </div>
-            <div class="feat">
-              <div class="feat-label" style="color:#2e7d5a">Código</div>
-              <div class="feat-desc">Script Python generado y descargable</div>
-            </div>
-            <div class="feat">
-              <div class="feat-label" style="color:#a8c4e0">Sin API externa</div>
-              <div class="feat-desc">Todo el conocimiento cargado localmente</div>
-            </div>
-          </div>
-          <button class="btn" onclick="window.parent.document.querySelector('button[kind=primary], [data-testid=stButton] button').click()">Comenzar →</button>
-        </div>
-        <script>
-        function fixLayout() {
-          var w = document.documentElement.clientWidth || document.body.clientWidth;
-          var grid = document.querySelector('.grid');
-          if (!grid) return;
-          grid.style.gridTemplateColumns = w >= 500 ? '1fr 1fr' : '1fr';
+        .landing-badge {
+          display: inline-block;
+          background: rgba(240,165,0,0.12);
+          border: 1px solid rgba(240,165,0,0.35);
+          border-radius: 20px;
+          padding: 4px 16px;
+          font-size: 11px; font-weight: 700;
+          color: #f0a500; letter-spacing: 1.5px;
+          text-transform: uppercase; margin-bottom: 8px;
         }
-        fixLayout();
-        window.addEventListener('resize', fixLayout);
-        </script>
-        """
-        components.html(RIGHT_PANEL, height=720, scrolling=False)
+        .landing-logo {
+          font-size: 54px; font-weight: 900; color: white;
+          letter-spacing: -2px; line-height: 1.05; margin: 8px 0 10px 0;
+        }
+        .landing-logo span { color: #f0a500; }
+        .landing-tagline {
+          font-size: 20px; font-weight: 600;
+          color: rgba(255,255,255,0.9); line-height: 1.4; margin-bottom: 6px;
+        }
+        .landing-sub {
+          font-size: 13px; color: rgba(255,255,255,0.5);
+          line-height: 1.75; margin-bottom: 20px;
+        }
+        .landing-grid {
+          display: grid; grid-template-columns: 1fr 1fr;
+          gap: 10px; margin-bottom: 24px;
+        }
+        .landing-feat {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 12px; padding: 14px 16px;
+        }
+        .landing-feat-label {
+          font-size: 11px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px;
+        }
+        .landing-feat-desc { font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.5; }
+        @media (max-width: 640px) {
+          .landing-logo { font-size: 38px; }
+          .landing-grid { grid-template-columns: 1fr; }
+        }
+        </style>
+
+        <div class="landing-badge">Machine Learning · Visual · Interactivo</div>
+        <div class="landing-logo">ML<span>earning</span></div>
+        <div class="landing-tagline">La app definitiva para aprender Machine Learning</div>
+        <div class="landing-sub">Entrena modelos reales · Visualiza cómo aprenden · Comprende cada hiperparámetro · Genera código listo para usar.</div>
+        <div class="landing-grid">
+          <div class="landing-feat">
+            <div class="landing-feat-label" style="color:#4a7ec8">Visualización</div>
+            <div class="landing-feat-desc">Animaciones matemáticas estilo 3Blue1Brown</div>
+          </div>
+          <div class="landing-feat">
+            <div class="landing-feat-label" style="color:#f0a500">Hiperparámetros</div>
+            <div class="landing-feat-desc">Cada parámetro explicado con efecto y regla práctica</div>
+          </div>
+          <div class="landing-feat">
+            <div class="landing-feat-label" style="color:#2e7d5a">Código</div>
+            <div class="landing-feat-desc">Script Python generado y descargable</div>
+          </div>
+          <div class="landing-feat">
+            <div class="landing-feat-label" style="color:#a8c4e0">Sin API externa</div>
+            <div class="landing-feat-desc">Todo el conocimiento cargado localmente</div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <style>
+        div[data-testid="stButton"] > button {
+          background: #f0a500 !important; color: #0d1b2a !important;
+          border: none !important; border-radius: 12px !important;
+          font-size: 17px !important; font-weight: 700 !important;
+          padding: 14px 48px !important;
+          box-shadow: 0 8px 28px rgba(240,165,0,0.35) !important;
+        }
+        </style>""", unsafe_allow_html=True)
+
+        if st.button("Comenzar →", key="landing_continue", use_container_width=False):
+            st.session_state.page = "select_type"
+            st.rerun()
 
     with col_anim:
         components.html(MANIM_ANIMATION, height=560, scrolling=False)
-
-    # Botón oculto de Streamlit — el HTML del panel lo dispara via click()
-    st.markdown("""
-    <style>
-    div[data-testid="stButton"] > button {
-      position: fixed !important;
-      left: -9999px !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    if st.button("Comenzar →", key="landing_continue"):
-        st.session_state.page = "select_type"
-        st.rerun()
