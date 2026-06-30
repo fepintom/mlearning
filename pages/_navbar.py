@@ -96,6 +96,14 @@ def navbar(active: int = -1):
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
+    # ── Firma ────────────────────────────────────────────────────────────────
+    st.markdown("""
+    <div style="text-align:right;font-size:11px;color:rgba(255,255,255,0.25);
+                letter-spacing:0.5px;margin-bottom:4px">
+      developed by <span style="color:rgba(240,165,0,0.5);font-weight:600">fepintom</span>
+    </div>
+    """, unsafe_allow_html=True)
+
     # ── Banner de dataset activo ─────────────────────────────────────────────
     ds_title = st.session_state.get("kaggle_dataset_title", "")
     ds_desc  = st.session_state.get("kaggle_dataset_desc", "")

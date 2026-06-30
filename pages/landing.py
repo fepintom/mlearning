@@ -436,3 +436,10 @@ def render():
 
     with col_anim:
         components.html(MANIM_ANIMATION, height=480, scrolling=False)
+
+    st.markdown("""
+    <div style="text-align:right;font-size:11px;color:rgba(255,255,255,0.25);
+                letter-spacing:0.5px;margin-top:8px">
+      developed by <span style="color:rgba(240,165,0,0.5);font-weight:600">fepintom</span>
+    </div>
+    """, unsafe_allow_html=True)
